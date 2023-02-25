@@ -1,5 +1,6 @@
 defmodule GenReport do
   alias GenReport.Parser
+  alias GenReport.Utils
 
   @initial_report_body %{
     "all_hours" => %{},
@@ -32,19 +33,15 @@ defmodule GenReport do
     hours_per_month_to_be_merged = report_to_be_merged["hours_per_month"]
     hours_per_year_to_be_merged = report_to_be_merged["hours_per_year"]
 
-    new_all_hours = merge_map_with_sum(all_hours_to_be_merged, all_hours_acc)
+    new_all_hours = Utils.merge_map_with_sum(all_hours_to_be_merged, all_hours_acc)
 
     new_hours_per_month =
-      Map.merge(hours_per_month_to_be_merged, hours_per_month_acc, fn _key, map1, map2 ->
-        merge_map_with_sum(map1, map2)
-      end)
+      Utils.merge_deep_map_with_sum(hours_per_month_to_be_merged, hours_per_month_acc)
 
     new_hours_per_year =
-      Map.merge(hours_per_year_to_be_merged, hours_per_year_acc, fn _key, map1, map2 ->
-        merge_map_with_sum(map1, map2)
-      end)
+      Utils.merge_deep_map_with_sum(hours_per_year_to_be_merged, hours_per_year_acc)
 
-    build_report_body(new_all_hours, new_hours_per_month, new_hours_per_year)
+    Utils.build_report_body(new_all_hours, new_hours_per_month, new_hours_per_year)
   end
 
   defp include_line_in_report([name, hours, _day, month, year], report_acc) do
@@ -52,39 +49,17 @@ defmodule GenReport do
     hours_per_month_acc = report_acc["hours_per_month"]
     hours_per_year_acc = report_acc["hours_per_year"]
 
-    new_all_hours = merge_map_with_sum(%{name => hours}, all_hours_acc)
+    new_all_hours = Utils.merge_map_with_sum(%{name => hours}, all_hours_acc)
 
     new_hours_per_month =
-      merge_deep_map_with_sum(
+      Utils.merge_deep_map_with_sum(
         %{month => hours},
         name,
         hours_per_month_acc
       )
 
-    new_hours_per_year = merge_deep_map_with_sum(%{year => hours}, name, hours_per_year_acc)
+    new_hours_per_year = Utils.merge_deep_map_with_sum(%{year => hours}, name, hours_per_year_acc)
 
-    build_report_body(new_all_hours, new_hours_per_month, new_hours_per_year)
-  end
-
-  defp merge_map_with_sum(map_to_be_merged, map_acc) do
-    Map.merge(map_to_be_merged, map_acc, fn _key, value1, value2 -> value1 + value2 end)
-  end
-
-  defp merge_deep_map_with_sum(map_to_be_merged, deep_key, map_acc) do
-    case map_acc[deep_key] do
-      nil ->
-        Map.put(map_acc, deep_key, map_to_be_merged)
-
-      _ ->
-        Map.replace!(map_acc, deep_key, merge_map_with_sum(map_to_be_merged, map_acc[deep_key]))
-    end
-  end
-
-  defp build_report_body(all_hours, hours_per_month, hours_per_year) do
-    %{
-      "all_hours" => all_hours,
-      "hours_per_month" => hours_per_month,
-      "hours_per_year" => hours_per_year
-    }
+    Utils.build_report_body(new_all_hours, new_hours_per_month, new_hours_per_year)
   end
 end
